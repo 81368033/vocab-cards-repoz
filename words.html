@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>单词打卡 Day 1</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:#f0f4f8; min-height:100vh; padding:16px; }
+  .wrap { max-width:520px; margin:0 auto; }
+  .header { background:linear-gradient(135deg,#4299e1,#667eea); border-radius:16px; padding:22px 20px; color:#fff; text-align:center; }
+  .header h1 { font-size:20px; }
+  .header p { font-size:13px; opacity:.92; margin-top:4px; }
+  .stats { display:flex; justify-content:space-around; background:#fff; border-radius:12px; padding:12px; margin:12px 0; }
+  .stat { text-align:center; }
+  .stat b { font-size:20px; color:#4299e1; display:block; }
+  .stat b.g { color:#48bb78; } .stat b.r { color:#f56565; }
+  .stat span { font-size:12px; color:#718096; }
+  .mode-bar { display:flex; gap:8px; margin-bottom:12px; }
+  .mode-btn { flex:1; padding:10px; border-radius:10px; border:2px solid #e2e8f0; background:#fff; font-size:14px; font-weight:600; color:#4a5568; cursor:pointer; }
+  .mode-btn.active { border-color:#4299e1; background:#ebf5ff; color:#2b6cb0; }
+  .tip { font-size:12px; color:#a0aec0; text-align:center; margin-bottom:10px; }
+  .word { background:#fff; border-radius:12px; padding:14px 16px; margin-bottom:10px; border-left:5px solid #e2e8f0; }
+  .word.known { border-left-color:#48bb78; }
+  .word.unknown { border-left-color:#f56565; }
+  .w-top { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .no { font-size:12px; color:#a0aec0; width:24px; }
+  .w-en { font-size:22px; font-weight:700; color:#2d3748; }
+  .w-phonetic { font-size:14px; color:#718096; font-family:"Times New Roman",serif; }
+  .spk { margin-left:auto; background:#ebf5ff; border:none; border-radius:8px; padding:6px 12px; font-size:18px; cursor:pointer; }
+  .w-pos { font-size:12px; color:#718096; margin:2px 0 6px 34px; }
+  .w-cn { font-size:16px; color:#2b6cb0; margin-left:34px; transition:filter .2s; }
+  .w-cn.blurred { filter:blur(6px); cursor:pointer; user-select:none; }
+  .w-spell { font-size:13px; color:#805ad5; margin:6px 0 0 34px; letter-spacing:1px; }
+  .w-actions { display:none; gap:8px; margin:10px 0 0 34px; }
+  .word.testing .w-actions { display:flex; }
+  .know, .unknow { flex:1; padding:8px; border-radius:8px; border:none; font-size:14px; font-weight:600; cursor:pointer; }
+  .know { background:#f0fff4; color:#2f855a; border:1px solid #48bb78; }
+  .unknow { background:#fff5f5; color:#c53030; border:1px solid #f56565; }
+  .footer-note { text-align:center; font-size:13px; color:#718096; margin:16px 0 30px; line-height:1.8; }
+  .audio-tip { background:#fffbe6; border:1px solid #ffe58f; border-radius:10px; padding:10px 14px; font-size:13px; color:#ad6800; margin-bottom:12px; display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>📚 单词打卡 Day 1</h1>
+    <p>外研版 必修第一册 Unit 1 A New Start · 共 50 词</p>
+  </div>
+  <div class="stats">
+    <div class="stat"><b id="total">50</b><span>总词数</span></div>
+    <div class="stat"><b class="g" id="known">0</b><span>已掌握</span></div>
+    <div class="stat"><b class="r" id="unknown">0</b><span>待巩固</span></div>
+  </div>
+  <div class="mode-bar">
+    <button class="mode-btn active" id="mLearn" onclick="setMode('learn')">📖 学习模式</button>
+    <button class="mode-btn" id="mTest" onclick="setMode('test')">✍️ 自测模式</button>
+  </div>
+  <div class="tip" id="tip">点 🔊 听发音，跟读 3 遍</div>
+  <div class="audio-tip" id="audioTip">🔊 第一次点发音前，请先点一下页面任意位置激活音频</div>
+  <div id="list"></div>
+  <div class="footer-note">背完一遍后切到「自测模式」，点卡片看意思，标记认识/不认识<br>⏰ 今晚 20:00 群内发大检查，加油！</div>
+</div>
+<script>
+const WORDS = [{"en": "senior", "cn": "高中的；年长的", "pos": "adj.", "phonetic": "/ˈsiːniə(r)/", "spell": "s-e-n-i-o-r"}, {"en": "curious", "cn": "好奇的", "pos": "adj.", "phonetic": "/ˈkjʊəriəs/", "spell": "c-u-r-i-o-u-s"}, {"en": "impression", "cn": "印象；感想", "pos": "n.", "phonetic": "/ɪmˈpreʃn/", "spell": "i-m-p-r-e-s-s-i-o-n"}, {"en": "campus", "cn": "校园", "pos": "n.", "phonetic": "/ˈkæmpəs/", "spell": "c-a-m-p-u-s"}, {"en": "tradition", "cn": "传统", "pos": "n.", "phonetic": "/trəˈdɪʃn/", "spell": "t-r-a-d-i-t-i-o-n"}, {"en": "facility", "cn": "设施；设备", "pos": "n.", "phonetic": "/fəˈsɪləti/", "spell": "f-a-c-i-l-i-t-y"}, {"en": "impressive", "cn": "令人印象深刻的", "pos": "adj.", "phonetic": "/ɪmˈpresɪv/", "spell": "i-m-p-r-e-s-s-i-v-e"}, {"en": "moment", "cn": "时刻；片刻", "pos": "n.", "phonetic": "/ˈməʊmənt/", "spell": "m-o-m-e-n-t"}, {"en": "author", "cn": "作者；作家", "pos": "n.", "phonetic": "/ˈɔːθə(r)/", "spell": "a-u-t-h-o-r"}, {"en": "eagerness", "cn": "渴望；热切", "pos": "n.", "phonetic": "/ˈiːɡənəs/", "spell": "e-a-g-e-r-n-e-s-s"}, {"en": "explore", "cn": "探索；探究", "pos": "v.", "phonetic": "/ɪkˈsplɔː(r)/", "spell": "e-x-p-l-o-r-e"}, {"en": "engine", "cn": "发动机；引擎", "pos": "n.", "phonetic": "/ˈendʒɪn/", "spell": "e-n-g-i-n-e"}, {"en": "insect", "cn": "昆虫", "pos": "n.", "phonetic": "/ˈɪnsekt/", "spell": "i-n-s-e-c-t"}, {"en": "collection", "cn": "收集；收藏品", "pos": "n.", "phonetic": "/kəˈlekʃn/", "spell": "c-o-l-l-e-c-t-i-o-n"}, {"en": "organise", "cn": "组织；安排", "pos": "v.", "phonetic": "/ˈɔːɡənaɪz/", "spell": "o-r-g-a-n-i-s-e"}, {"en": "nudge", "cn": "轻推；轻碰", "pos": "v./n.", "phonetic": "/nʌdʒ/", "spell": "n-u-d-g-e"}, {"en": "butterfly", "cn": "蝴蝶", "pos": "n.", "phonetic": "/ˈbʌtəflaɪ/", "spell": "b-u-t-t-e-r-f-l-y"}, {"en": "breathe", "cn": "呼吸", "pos": "v.", "phonetic": "/briːð/", "spell": "b-r-e-a-t-h-e"}, {"en": "panic", "cn": "惊慌；恐慌", "pos": "n./v.", "phonetic": "/ˈpænɪk/", "spell": "p-a-n-i-c"}, {"en": "challenge", "cn": "挑战", "pos": "n./v.", "phonetic": "/ˈtʃælɪndʒ/", "spell": "c-h-a-l-l-e-n-g-e"}, {"en": "pressure", "cn": "压力", "pos": "n.", "phonetic": "/ˈpreʃə(r)/", "spell": "p-r-e-s-s-u-r-e"}, {"en": "calm", "cn": "镇静的；平静的", "pos": "adj.", "phonetic": "/kɑːm/", "spell": "c-a-l-m"}, {"en": "description", "cn": "描述；描写", "pos": "n.", "phonetic": "/dɪˈskrɪpʃn/", "spell": "d-e-s-c-r-i-p-t-i-o-n"}, {"en": "confident", "cn": "自信的；有信心的", "pos": "adj.", "phonetic": "/ˈkɒnfɪdənt/", "spell": "c-o-n-f-i-d-e-n-t"}, {"en": "poster", "cn": "海报；招贴画", "pos": "n.", "phonetic": "/ˈpəʊstə(r)/", "spell": "p-o-s-t-e-r"}, {"en": "badminton", "cn": "羽毛球", "pos": "n.", "phonetic": "/ˈbædmɪntən/", "spell": "b-a-d-m-i-n-t-o-n"}, {"en": "drama", "cn": "戏剧", "pos": "n.", "phonetic": "/ˈdrɑːmə/", "spell": "d-r-a-m-a"}, {"en": "band", "cn": "乐队；乐团", "pos": "n.", "phonetic": "/bænd/", "spell": "b-a-n-d"}, {"en": "debate", "cn": "辩论；争论", "pos": "n./v.", "phonetic": "/dɪˈbeɪt/", "spell": "d-e-b-a-t-e"}, {"en": "gym", "cn": "体育馆；健身房", "pos": "n.", "phonetic": "/dʒɪm/", "spell": "g-y-m"}, {"en": "piano", "cn": "钢琴", "pos": "n.", "phonetic": "/piˈænəʊ/", "spell": "p-i-a-n-o"}, {"en": "stage", "cn": "舞台；阶段", "pos": "n.", "phonetic": "/steɪdʒ/", "spell": "s-t-a-g-e"}, {"en": "photography", "cn": "摄影", "pos": "n.", "phonetic": "/fəˈtɒɡrəfi/", "spell": "p-h-o-t-o-g-r-a-p-h-y"}, {"en": "opportunity", "cn": "机会；时机", "pos": "n.", "phonetic": "/ˌɒpəˈtjuːnəti/", "spell": "o-p-p-o-r-t-u-n-i-t-y"}, {"en": "frightened", "cn": "害怕的；受惊的", "pos": "adj.", "phonetic": "/ˈfraɪtnd/", "spell": "f-r-i-g-h-t-e-n-e-d"}, {"en": "sight", "cn": "看见；视野；景象", "pos": "n.", "phonetic": "/saɪt/", "spell": "s-i-g-h-t"}, {"en": "figure", "cn": "人物；数字；身材", "pos": "n.", "phonetic": "/ˈfɪɡə(r)/", "spell": "f-i-g-u-r-e"}, {"en": "neat", "cn": "整洁的；整齐的", "pos": "adj.", "phonetic": "/niːt/", "spell": "n-e-a-t"}, {"en": "specific", "cn": "具体的；特定的", "pos": "adj.", "phonetic": "/spəˈsɪfɪk/", "spell": "s-p-e-c-i-f-i-c"}, {"en": "refer", "cn": "提到；参考；指的是", "pos": "v.", "phonetic": "/rɪˈfɜː(r)/", "spell": "r-e-f-e-r"}, {"en": "journal", "cn": "日记；日志；期刊", "pos": "n.", "phonetic": "/ˈdʒɜːnl/", "spell": "j-o-u-r-n-a-l"}, {"en": "junior", "cn": "初中的；年少的", "pos": "adj.", "phonetic": "/ˈdʒuːniə(r)/", "spell": "j-u-n-i-o-r"}, {"en": "struggle", "cn": "奋斗；挣扎", "pos": "v./n.", "phonetic": "/ˈstrʌɡl/", "spell": "s-t-r-u-g-g-l-e"}, {"en": "memorise", "cn": "记住；熟记", "pos": "v.", "phonetic": "/ˈmeməraɪz/", "spell": "m-e-m-o-r-i-s-e"}, {"en": "skateboarding", "cn": "滑板运动", "pos": "n.", "phonetic": "/ˈskeɪtbɔːdɪŋ/", "spell": "s-k-a-t-e-b-o-a-r-d-i-n-g"}, {"en": "forward", "cn": "向前", "pos": "adv.", "phonetic": "/ˈfɔːwəd/", "spell": "f-o-r-w-a-r-d"}, {"en": "committee", "cn": "委员会", "pos": "n.", "phonetic": "/kəˈmɪti/", "spell": "c-o-m-m-i-t-t-e-e"}, {"en": "improve", "cn": "改善；提高", "pos": "v.", "phonetic": "/ɪmˈpruːv/", "spell": "i-m-p-r-o-v-e"}, {"en": "rate", "cn": "比率；速度；评价", "pos": "n./v.", "phonetic": "/reɪt/", "spell": "r-a-t-e"}, {"en": "performance", "cn": "表现；表演；性能", "pos": "n.", "phonetic": "/pəˈfɔːməns/", "spell": "p-e-r-f-o-r-m-a-n-c-e"}];
+const DAY = 1;
+const KEY = 'vocab_day' + DAY;
+let mode = 'learn';
+let marks = {};
+let audioUnlocked = false;
+try { marks = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e) { marks = {}; }
+
+// 微信浏览器音频解锁
+document.body.addEventListener('touchstart', unlockAudio, { once: true });
+document.body.addEventListener('click', unlockAudio, { once: true });
+function unlockAudio() {
+  if (audioUnlocked) return;
+  audioUnlocked = true;
+  document.getElementById('audioTip').style.display = 'none';
+  // 预创建一个音频上下文
+  try {
+    const a = new Audio();
+    a.src = 'data:audio/mp3;base64,//uQxAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAACcQCA';
+    a.play().catch(() => {});
+  } catch(e) {}
+}
+
+// 播放发音（多源+本地降级）
+function speak(t) {
+  if (!audioUnlocked) {
+    document.getElementById('audioTip').style.display = 'block';
+    return;
+  }
+  const sources = [
+    'https://dict.youdao.com/dictvoice?audio=' + encodeURIComponent(t) + '&type=2',
+    'https://dict.youdao.com/dictvoice?audio=' + encodeURIComponent(t) + '&type=1'
+  ];
+  tryPlay(t, sources, 0);
+}
+function tryPlay(t, sources, i) {
+  if (i >= sources.length) { speakFallback(t); return; }
+  const a = new Audio();
+  let done = false;
+  const next = () => { if (!done) { done = true; tryPlay(t, sources, i + 1); } };
+  a.onerror = next;
+  a.onstalled = next;
+  const timer = setTimeout(next, 3000);
+  a.oncanplaythrough = () => {
+    if (done) return;
+    done = true;
+    clearTimeout(timer);
+    a.play().catch(next);
+  };
+  a.src = sources[i];
+}
+function speakFallback(t) {
+  try {
+    const synth = window.speechSynthesis;
+    if (!synth) return;
+    synth.cancel();
+    setTimeout(() => {
+      const u = new SpeechSynthesisUtterance(t);
+      u.lang = 'en-GB'; u.rate = 0.85;
+      synth.speak(u);
+    }, 150);
+  } catch(e) {}
+}
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('mLearn').classList.toggle('active', m === 'learn');
+  document.getElementById('mTest').classList.toggle('active', m === 'test');
+  document.getElementById('tip').textContent = m === 'learn'
+    ? '点 🔊 听发音，跟读 3 遍'
+    : '点模糊的释义看答案，然后标记认识 / 不认识';
+  render();
+}
+
+function markWord(en, v) {
+  marks[en] = v;
+  try { localStorage.setItem(KEY, JSON.stringify(marks)); } catch(e) {}
+  render();
+}
+
+function render() {
+  const list = document.getElementById('list');
+  list.innerHTML = WORDS.map((w, i) => {
+    const mk = marks[w.en];
+    const cls = mk === 1 ? 'known' : (mk === 0 ? 'unknown' : '');
+    const testing = mode === 'test';
+    return `<div class="word ${cls} ${testing ? 'testing' : ''}">
+      <div class="w-top">
+        <span class="no">${i+1}</span>
+        <span class="w-en">${w.en}</span>
+        ${w.phonetic ? `<span class="w-phonetic">${w.phonetic}</span>` : ''}
+        <button class="spk" onclick="speak('${w.en}')">🔊</button>
+      </div>
+      <div class="w-pos">${w.pos}</div>
+      <div class="w-cn ${testing ? 'blurred' : ''}" onclick="this.classList.toggle('blurred')">${w.cn}</div>
+      <div class="w-spell">拼读：${w.spell}</div>
+      <div class="w-actions">
+        <button class="know" onclick="markWord('${w.en}',1)">✓ 认识</button>
+        <button class="unknow" onclick="markWord('${w.en}',0)">✗ 不认识</button>
+      </div>
+    </div>`;
+  }).join('');
+  const vals = Object.values(marks);
+  document.getElementById('known').textContent = vals.filter(v => v === 1).length;
+  document.getElementById('unknown').textContent = vals.filter(v => v === 0).length;
+}
+render();
+</script>
+</body>
+</html>

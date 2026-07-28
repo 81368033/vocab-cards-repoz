@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>单词大检查 Day 1</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif; background:#f0f4f8; min-height:100vh; padding:16px; }
+  .card { max-width:520px; margin:0 auto; background:#fff; border-radius:16px; padding:24px 20px; }
+  .header { text-align:center; margin-bottom:8px; }
+  .header h1 { font-size:20px; color:#1a365d; }
+  .header p { font-size:13px; color:#718096; margin-top:4px; }
+  .progress { height:8px; background:#e2e8f0; border-radius:4px; margin:16px 0; overflow:hidden; }
+  .bar { height:100%; background:linear-gradient(90deg,#4299e1,#667eea); border-radius:4px; transition:width .3s; width:0; }
+  .section-tag { display:inline-block; font-size:12px; background:#edf2f7; color:#4a5568; border-radius:6px; padding:3px 10px; margin-bottom:8px; }
+  .q-no { font-size:13px; color:#4299e1; font-weight:600; }
+  .q-text { font-size:17px; font-weight:600; color:#2d3748; margin:8px 0 18px; line-height:1.5; }
+  .hint { font-size:13px; color:#718096; margin-bottom:12px; }
+  .spell-input { width:100%; padding:14px; font-size:18px; border:2px solid #cbd5e0; border-radius:10px; margin-bottom:12px; text-transform:lowercase; }
+  .submit-btn { width:100%; background:linear-gradient(90deg,#4299e1,#667eea); color:#fff; border:none; border-radius:10px; padding:14px; font-size:16px; font-weight:600; }
+  .feedback { margin-top:12px; font-size:15px; }
+  .feedback.ok { color:#2f855a; } .feedback.no { color:#c53030; }
+  .opt { display:flex; align-items:center; width:100%; text-align:left; background:#f7fafc; border:2px solid #e2e8f0; border-radius:12px; padding:13px 16px; margin-bottom:10px; font-size:15px; color:#2d3748; cursor:pointer; }
+  .opt .tag { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; background:#e2e8f0; color:#4a5568; font-size:14px; font-weight:600; margin-right:12px; flex-shrink:0; }
+  .opt.correct { border-color:#48bb78; background:#f0fff4; } .opt.correct .tag { background:#48bb78; color:#fff; }
+  .opt.wrong { border-color:#f56565; background:#fff5f5; } .opt.wrong .tag { background:#f56565; color:#fff; }
+  .opt:disabled { cursor:default; }
+  .footer { display:flex; justify-content:space-between; align-items:center; margin-top:14px; }
+  .counter { font-size:13px; color:#a0aec0; }
+  .next-btn { background:linear-gradient(90deg,#4299e1,#667eea); color:#fff; border:none; border-radius:10px; padding:12px 28px; font-size:16px; font-weight:600; }
+  .next-btn:disabled { opacity:.4; }
+  .result { text-align:center; padding:20px 0; }
+  .score { font-size:56px; font-weight:800; color:#4299e1; }
+  .score small { font-size:20px; color:#718096; }
+  .verdict { font-size:17px; color:#2d3748; margin:10px 0 20px; font-weight:600; }
+  .wrong-list { text-align:left; background:#fff5f5; border-radius:12px; padding:14px 16px; margin-top:10px; }
+  .wrong-list h3 { font-size:14px; color:#c53030; margin-bottom:8px; }
+  .wrong-list li { font-size:14px; color:#2d3748; margin:6px 0; list-style:none; }
+  .wrong-list b { color:#c53030; }
+  .restart-btn { margin-top:16px; background:#fff; color:#4299e1; border:2px solid #4299e1; border-radius:10px; padding:12px 28px; font-size:16px; font-weight:600; }
+  .hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="card" id="quizCard">
+  <div class="header">
+    <h1>📝 单词大检查 Day 1</h1>
+    <p>外研版 必修第一册 Unit 1 A New Start · 共 60 题（拼写10 + 选择40 + 辨析10）</p>
+  </div>
+  <div class="progress"><div class="bar" id="bar"></div></div>
+  <div id="quiz"></div>
+  <div class="footer" id="footer">
+    <span class="counter" id="counter"></span>
+    <button class="next-btn" id="nextBtn" disabled>下一题</button>
+  </div>
+</div>
+<div class="card result hidden" id="result">
+  <div class="score"><span id="scoreNum">0</span><small> / 60</small></div>
+  <div class="verdict" id="verdict"></div>
+  <div class="wrong-list hidden" id="wrongList">
+    <h3>❌ 错题回顾（这些要重点复习）</h3>
+    <ul id="wrongs"></ul>
+  </div>
+  <button class="restart-btn" onclick="location.reload()">再测一次</button>
+</div>
+<script>
+const QUESTIONS = [{"type": "spell", "prompt": "「人物；数字；身材」/ˈfɪɡə(r)/", "word": "figure", "meaning": "人物；数字；身材"}, {"type": "spell", "prompt": "「体育馆；健身房」/dʒɪm/", "word": "gym", "meaning": "体育馆；健身房"}, {"type": "spell", "prompt": "「奋斗；挣扎」/ˈstrʌɡl/", "word": "struggle", "meaning": "奋斗；挣扎"}, {"type": "spell", "prompt": "「整洁的；整齐的」/niːt/", "word": "neat", "meaning": "整洁的；整齐的"}, {"type": "spell", "prompt": "「表现；表演；性能」/pəˈfɔːməns/", "word": "performance", "meaning": "表现；表演；性能"}, {"type": "spell", "prompt": "「日记；日志；期刊」/ˈdʒɜːnl/", "word": "journal", "meaning": "日记；日志；期刊"}, {"type": "spell", "prompt": "「令人印象深刻的」/ɪmˈpresɪv/", "word": "impressive", "meaning": "令人印象深刻的"}, {"type": "spell", "prompt": "「辩论；争论」/dɪˈbeɪt/", "word": "debate", "meaning": "辩论；争论"}, {"type": "spell", "prompt": "「钢琴」/piˈænəʊ/", "word": "piano", "meaning": "钢琴"}, {"type": "spell", "prompt": "「渴望；热切」/ˈiːɡənəs/", "word": "eagerness", "meaning": "渴望；热切"}, {"type": "c2e", "prompt": "「设施；设备」对应的英文单词是？", "options": ["breathe", "refer", "impression", "facility"], "answer": 3, "word": "facility", "meaning": "设施；设备"}, {"type": "c2e", "prompt": "「羽毛球」对应的英文单词是？", "options": ["explore", "description", "junior", "badminton"], "answer": 3, "word": "badminton", "meaning": "羽毛球"}, {"type": "c2e", "prompt": "「昆虫」对应的英文单词是？", "options": ["moment", "performance", "stage", "insect"], "answer": 3, "word": "insect", "meaning": "昆虫"}, {"type": "c2e", "prompt": "「压力」对应的英文单词是？", "options": ["insect", "forward", "pressure", "description"], "answer": 2, "word": "pressure", "meaning": "压力"}, {"type": "c2e", "prompt": "「乐队；乐团」对应的英文单词是？", "options": ["photography", "junior", "band", "forward"], "answer": 2, "word": "band", "meaning": "乐队；乐团"}, {"type": "c2e", "prompt": "「舞台；阶段」对应的英文单词是？", "options": ["rate", "panic", "impressive", "stage"], "answer": 3, "word": "stage", "meaning": "舞台；阶段"}, {"type": "c2e", "prompt": "「组织；安排」对应的英文单词是？", "options": ["organise", "confident", "memorise", "rate"], "answer": 0, "word": "organise", "meaning": "组织；安排"}, {"type": "c2e", "prompt": "「发动机；引擎」对应的英文单词是？", "options": ["organise", "impression", "butterfly", "engine"], "answer": 3, "word": "engine", "meaning": "发动机；引擎"}, {"type": "c2e", "prompt": "「蝴蝶」对应的英文单词是？", "options": ["performance", "facility", "butterfly", "forward"], "answer": 2, "word": "butterfly", "meaning": "蝴蝶"}, {"type": "c2e", "prompt": "「改善；提高」对应的英文单词是？", "options": ["nudge", "improve", "drama", "author"], "answer": 1, "word": "improve", "meaning": "改善；提高"}, {"type": "c2e", "prompt": "「挑战」对应的英文单词是？", "options": ["frightened", "challenge", "stage", "drama"], "answer": 1, "word": "challenge", "meaning": "挑战"}, {"type": "c2e", "prompt": "「收集；收藏品」对应的英文单词是？", "options": ["collection", "explore", "insect", "pressure"], "answer": 0, "word": "collection", "meaning": "收集；收藏品"}, {"type": "c2e", "prompt": "「害怕的；受惊的」对应的英文单词是？", "options": ["frightened", "sight", "photography", "eagerness"], "answer": 0, "word": "frightened", "meaning": "害怕的；受惊的"}, {"type": "c2e", "prompt": "「具体的；特定的」对应的英文单词是？", "options": ["specific", "breathe", "calm", "explore"], "answer": 0, "word": "specific", "meaning": "具体的；特定的"}, {"type": "c2e", "prompt": "「惊慌；恐慌」对应的英文单词是？", "options": ["panic", "journal", "badminton", "refer"], "answer": 0, "word": "panic", "meaning": "惊慌；恐慌"}, {"type": "c2e", "prompt": "「好奇的」对应的英文单词是？", "options": ["confident", "refer", "performance", "curious"], "answer": 3, "word": "curious", "meaning": "好奇的"}, {"type": "c2e", "prompt": "「描述；描写」对应的英文单词是？", "options": ["engine", "description", "calm", "confident"], "answer": 1, "word": "description", "meaning": "描述；描写"}, {"type": "c2e", "prompt": "「戏剧」对应的英文单词是？", "options": ["nudge", "panic", "drama", "campus"], "answer": 2, "word": "drama", "meaning": "戏剧"}, {"type": "c2e", "prompt": "「传统」对应的英文单词是？", "options": ["calm", "challenge", "rate", "tradition"], "answer": 3, "word": "tradition", "meaning": "传统"}, {"type": "c2e", "prompt": "「探索；探究」对应的英文单词是？", "options": ["neat", "poster", "pressure", "explore"], "answer": 3, "word": "explore", "meaning": "探索；探究"}, {"type": "e2c", "prompt": "「refer」的中文意思是？", "options": ["记住；熟记", "描述；描写", "压力", "提到；参考；指的是"], "answer": 3, "word": "refer", "meaning": "提到；参考；指的是"}, {"type": "e2c", "prompt": "「author」的中文意思是？", "options": ["挑战", "高中的；年长的", "作者；作家", "摄影"], "answer": 2, "word": "author", "meaning": "作者；作家"}, {"type": "e2c", "prompt": "「junior」的中文意思是？", "options": ["轻推；轻碰", "整洁的；整齐的", "舞台；阶段", "初中的；年少的"], "answer": 3, "word": "junior", "meaning": "初中的；年少的"}, {"type": "e2c", "prompt": "「sight」的中文意思是？", "options": ["惊慌；恐慌", "看见；视野；景象", "探索；探究", "滑板运动"], "answer": 1, "word": "sight", "meaning": "看见；视野；景象"}, {"type": "e2c", "prompt": "「confident」的中文意思是？", "options": ["舞台；阶段", "摄影", "自信的；有信心的", "轻推；轻碰"], "answer": 2, "word": "confident", "meaning": "自信的；有信心的"}, {"type": "e2c", "prompt": "「photography」的中文意思是？", "options": ["日记；日志；期刊", "探索；探究", "昆虫", "摄影"], "answer": 3, "word": "photography", "meaning": "摄影"}, {"type": "e2c", "prompt": "「senior」的中文意思是？", "options": ["害怕的；受惊的", "描述；描写", "高中的；年长的", "人物；数字；身材"], "answer": 2, "word": "senior", "meaning": "高中的；年长的"}, {"type": "e2c", "prompt": "「forward」的中文意思是？", "options": ["向前", "提到；参考；指的是", "舞台；阶段", "辩论；争论"], "answer": 0, "word": "forward", "meaning": "向前"}, {"type": "e2c", "prompt": "「committee」的中文意思是？", "options": ["校园", "探索；探究", "改善；提高", "委员会"], "answer": 3, "word": "committee", "meaning": "委员会"}, {"type": "e2c", "prompt": "「campus」的中文意思是？", "options": ["记住；熟记", "改善；提高", "校园", "镇静的；平静的"], "answer": 2, "word": "campus", "meaning": "校园"}, {"type": "e2c", "prompt": "「opportunity」的中文意思是？", "options": ["机会；时机", "挑战", "时刻；片刻", "害怕的；受惊的"], "answer": 0, "word": "opportunity", "meaning": "机会；时机"}, {"type": "e2c", "prompt": "「nudge」的中文意思是？", "options": ["轻推；轻碰", "委员会", "印象；感想", "初中的；年少的"], "answer": 0, "word": "nudge", "meaning": "轻推；轻碰"}, {"type": "e2c", "prompt": "「breathe」的中文意思是？", "options": ["摄影", "呼吸", "辩论；争论", "奋斗；挣扎"], "answer": 1, "word": "breathe", "meaning": "呼吸"}, {"type": "e2c", "prompt": "「skateboarding」的中文意思是？", "options": ["日记；日志；期刊", "委员会", "滑板运动", "收集；收藏品"], "answer": 2, "word": "skateboarding", "meaning": "滑板运动"}, {"type": "e2c", "prompt": "「impression」的中文意思是？", "options": ["高中的；年长的", "滑板运动", "印象；感想", "昆虫"], "answer": 2, "word": "impression", "meaning": "印象；感想"}, {"type": "e2c", "prompt": "「poster」的中文意思是？", "options": ["机会；时机", "设施；设备", "具体的；特定的", "海报；招贴画"], "answer": 3, "word": "poster", "meaning": "海报；招贴画"}, {"type": "e2c", "prompt": "「moment」的中文意思是？", "options": ["摄影", "奋斗；挣扎", "时刻；片刻", "初中的；年少的"], "answer": 2, "word": "moment", "meaning": "时刻；片刻"}, {"type": "e2c", "prompt": "「calm」的中文意思是？", "options": ["惊慌；恐慌", "体育馆；健身房", "好奇的", "镇静的；平静的"], "answer": 3, "word": "calm", "meaning": "镇静的；平静的"}, {"type": "e2c", "prompt": "「memorise」的中文意思是？", "options": ["初中的；年少的", "具体的；特定的", "记住；熟记", "蝴蝶"], "answer": 2, "word": "memorise", "meaning": "记住；熟记"}, {"type": "e2c", "prompt": "「rate」的中文意思是？", "options": ["比率；速度；评价", "机会；时机", "提到；参考；指的是", "组织；安排"], "answer": 0, "word": "rate", "meaning": "比率；速度；评价"}];
+let cur = 0, score = 0, wrongs = [], answered = false;
+const quizEl = document.getElementById('quiz');
+const nextBtn = document.getElementById('nextBtn');
+const bar = document.getElementById('bar');
+const counter = document.getElementById('counter');
+
+function sectionTag(i) {
+  if (i < 10) return '第一部分 · 看音标拼写单词（10题）';
+  if (i < 30) return '第二部分 · 看中文选英文（20题）';
+  if (i < 50) return '第三部分 · 看英文选中文（20题）';
+  return '第四部分 · 词义辨析（10题）';
+}
+
+function render() {
+  answered = false;
+  const q = QUESTIONS[cur];
+  bar.style.width = (cur / QUESTIONS.length * 100) + '%';
+  counter.textContent = `第 ${cur+1} / ${QUESTIONS.length} 题`;
+  nextBtn.disabled = true;
+  nextBtn.textContent = cur === QUESTIONS.length - 1 ? '查看结果' : '下一题';
+  let tag = '';
+  if ([0,10,30,50].includes(cur)) tag = `<div class="section-tag">${sectionTag(cur)}</div>`;
+  if (q.type === 'spell') renderSpell(q, tag);
+  else renderChoice(q, tag);
+}
+
+function renderSpell(q, tag) {
+  quizEl.innerHTML = tag + `
+    <div class="q-no">QUESTION ${cur+1} · 看音标拼写</div>
+    <div class="q-text">${q.prompt}</div>
+    <div class="hint">根据中文和音标，把单词拼出来</div>
+    <input class="spell-input" id="spellInput" type="text" inputmode="latin" autocomplete="off" autocapitalize="none" autocorrect="off" placeholder="输入英文单词">
+    <button class="submit-btn" onclick="submitSpell()">确定</button>
+    <div class="feedback" id="feedback"></div>
+  `;
+  document.getElementById('spellInput').focus();
+  document.getElementById('spellInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitSpell();
+  });
+}
+
+function submitSpell() {
+  if (answered) return;
+  const q = QUESTIONS[cur];
+  const v = document.getElementById('spellInput').value.toLowerCase().replace(/[^a-z]/g, '');
+  if (!v) return;
+  answered = true;
+  const fb = document.getElementById('feedback');
+  if (v === q.word) {
+    score++;
+    fb.className = 'feedback ok';
+    fb.textContent = '🎉 拼写正确：' + q.word;
+  } else {
+    fb.className = 'feedback no';
+    fb.textContent = '✏️ 正确拼写：' + q.word + '（' + q.meaning + '）';
+    wrongs.push(q);
+  }
+  document.getElementById('spellInput').disabled = true;
+  nextBtn.disabled = false;
+}
+
+function renderChoice(q, tag) {
+  quizEl.innerHTML = tag + `
+    <div class="q-no">QUESTION ${cur+1}</div>
+    <div class="q-text">${q.prompt}</div>
+    ${q.options.map((o,i)=>`<button class="opt" data-i="${i}"><span class="tag">${'ABCD'[i]}</span>${o}</button>`).join('')}
+  `;
+  quizEl.querySelectorAll('.opt').forEach(btn => {
+    btn.addEventListener('click', () => pickChoice(parseInt(btn.dataset.i)));
+  });
+}
+
+function pickChoice(i) {
+  if (answered) return;
+  answered = true;
+  const q = QUESTIONS[cur];
+  const opts = quizEl.querySelectorAll('.opt');
+  opts.forEach(b => b.disabled = true);
+  opts[q.answer].classList.add('correct');
+  if (i === q.answer) score++;
+  else { opts[i].classList.add('wrong'); wrongs.push(q); }
+  nextBtn.disabled = false;
+}
+
+nextBtn.addEventListener('click', () => {
+  if (cur < QUESTIONS.length - 1) { cur++; render(); }
+  else showResult();
+});
+
+function showResult() {
+  bar.style.width = '100%';
+  document.getElementById('quizCard').classList.add('hidden');
+  document.getElementById('result').classList.remove('hidden');
+  document.getElementById('scoreNum').textContent = score;
+  const pct = score / QUESTIONS.length;
+  const v = document.getElementById('verdict');
+  if (pct === 1) v.textContent = '🎉 满分！太厉害了！';
+  else if (pct >= 0.9) v.textContent = '🌟 优秀！错的几处再巩固一下';
+  else if (pct >= 0.8) v.textContent = '👍 很棒！错题要重点复习';
+  else if (pct >= 0.6) v.textContent = '💪 还不错，但还有提升空间';
+  else v.textContent = '📖 单词还不够熟，明早再背一遍';
+  if (wrongs.length) {
+    document.getElementById('wrongList').classList.remove('hidden');
+    document.getElementById('wrongs').innerHTML =
+      wrongs.map(q => `<li><b>${q.word}</b>${q.meaning ? ' — ' + q.meaning : ''}</li>`).join('');
+  }
+}
+
+render();
+</script>
+</body>
+</html>
